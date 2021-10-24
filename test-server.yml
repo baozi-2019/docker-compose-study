@@ -1,0 +1,60 @@
+version: "3.9"
+services:
+  mysql:
+    image: "mysql:latest"
+    container_name: mysql8
+    ports:
+      - 3306:3306
+    volumes:
+      - /opt/docker-file/mysql/conf/my.cnf:/etc/mysql/conf.d/config-file.cnf:ro
+      - /opt/docker-file/mysql/logs:/var/lib/mysql/logs
+      - /opt/docker-file/mysql/data:/var/lib/mysql/data
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+  redis:
+    image: "redis:latest"
+    container_name: redis
+    ports:
+      - 6379:6379
+    volumes:
+      - /opt/docker-file/redis/data:/usr/local/etc/redis/data
+      - /opt/docker-file/redis/conf/redis.conf:/usr/local/etc/redis/redis.conf
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+  rabbitmq:
+    image: "rabbitmq:management"
+    ports:
+      - 15672:15672
+      - 5672:5672
+    container_name: rabbitmq
+    hostname: my-rabbit
+    volumes:
+        - /opt/docker-file/rabbitmq/data:/var/lib/rabbitmq
+        - /opt/docker-file/rabbitmq/conf:/etc/rabbitmq/conf.d:ro
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+  mongo:
+    image: "mongo:latest"
+    container_name: mongo
+    ports:
+      - 27017:27017
+    command: --config /etc/mongo/mongod.conf
+    volumes:
+      - /opt/docker-file/mongo/data:/data
+      - /opt/docker-file/mongo/conf:/etc/mongo
+      - /opt/docker-file/mongo/log:/var/log/mongodb
+    # environment:
+    #   MONGO_INITDB_ROOT_USERNAME: admnin
+    #   MONGO_INITDB_ROOT_PASSWORD: baozi199929
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
