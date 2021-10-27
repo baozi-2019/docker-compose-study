@@ -11,6 +11,7 @@ services:
       - /opt/docker-file/mysql/data:/var/lib/mysql/data
     environment:
       MYSQL_ROOT_PASSWORD: root
+      TZ: Asia/Shanghai
     deploy:
       restart_policy:
         condition: on-failure
