@@ -2,20 +2,26 @@ version: "3.9"
 services:
   mysql:
     image: "mysql:latest"
-    container_name: mysql8
+    container_name: mysql
     ports:
       - 3306:3306
     volumes:
-      - /opt/docker-file/mysql/conf/my.cnf:/etc/mysql/conf.d/config-file.cnf:ro
-      - /opt/docker-file/mysql/logs:/var/lib/mysql/logs
-      - /opt/docker-file/mysql/data:/var/lib/mysql/data
+            #- /opt/docker-file/mysql/conf/my.cnf:/etc/mysql/conf.d/config-file.cnf:ro
+            #- /opt/docker-file/mysql/logs/:/var/lib/mysql/logs/
+            #- /opt/docker-file/mysql/data/:/var/lib/mysql/data/
+      - /opt/docker-file/mysql/data:/var/lib/mysql
+      - /opt/docker-file/mysql/my.cnf:/etc/mysql/conf.d/config-file.cnf:ro
     environment:
       MYSQL_ROOT_PASSWORD: root
       TZ: Asia/Shanghai
     deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 400M
       restart_policy:
         condition: on-failure
-        max_attempts: 3
+        max_attempts: 1
   redis:
     image: "redis:latest"
     container_name: redis
@@ -23,8 +29,12 @@ services:
       - 6379:6379
     volumes:
       - /opt/docker-file/redis/data:/usr/local/etc/redis/data
-      - /opt/docker-file/redis/conf/redis.conf:/usr/local/etc/redis/redis.conf
+      - /opt/docker-file/redis/conf:/usr/local/etc/redis
     deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 200M
       restart_policy:
         condition: on-failure
         max_attempts: 3
@@ -39,6 +49,10 @@ services:
         - /opt/docker-file/rabbitmq/data:/var/lib/rabbitmq
         - /opt/docker-file/rabbitmq/conf:/etc/rabbitmq/conf.d:ro
     deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 200M
       restart_policy:
         condition: on-failure
         max_attempts: 3
@@ -56,6 +70,30 @@ services:
     #   MONGO_INITDB_ROOT_USERNAME: admnin
     #   MONGO_INITDB_ROOT_PASSWORD: baozi199929
     deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 200M
       restart_policy:
         condition: on-failure
         max_attempts: 3
+  nacos:
+    image: nacos/nacos-server:latest
+    container_name: nacos
+    env_file:
+      - /opt/docker-file/nacos/env/nacos.env
+    volumes:
+      - /opt/docker-file/nacos/logs:/home/nacos/logs
+      - /opt/docker-file/nacos/conf/custom.properties:/home/nacos/init.d/custom.properties
+    depends_on:
+      - mysql
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+      - "9555:9555"
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 200M
