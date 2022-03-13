@@ -18,10 +18,15 @@ services:
       resources:
         limits:
           cpus: '0.50'
-          memory: 400M
+          memory: 500M
       restart_policy:
         condition: on-failure
-        max_attempts: 1
+        max_attempts: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200m"
+        max-file: "5"
   redis:
     image: "redis:latest"
     container_name: redis
@@ -33,11 +38,16 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.50'
+          cpus: '0.20'
           memory: 200M
       restart_policy:
         condition: on-failure
         max_attempts: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200m"
+        max-file: "5"
   rabbitmq:
     image: "rabbitmq:management"
     ports:
@@ -51,32 +61,41 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.50'
+          cpus: '0.20'
           memory: 200M
       restart_policy:
         condition: on-failure
         max_attempts: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200m"
+        max-file: "5"
   mongo:
     image: "mongo:latest"
     container_name: mongo
     ports:
       - 27017:27017
-    command: --config /etc/mongo/mongod.conf
     volumes:
       - /opt/docker-file/mongo/data:/data
-      - /opt/docker-file/mongo/conf:/etc/mongo
       - /opt/docker-file/mongo/log:/var/log/mongodb
-    # environment:
-    #   MONGO_INITDB_ROOT_USERNAME: admnin
-    #   MONGO_INITDB_ROOT_PASSWORD: baozi199929
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: baozi199929
+      MONGO_INITDB_DATABASE: admin
     deploy:
       resources:
         limits:
-          cpus: '0.50'
+          cpus: '0.20'
           memory: 200M
       restart_policy:
         condition: on-failure
         max_attempts: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200m"
+        max-file: "5"
   nacos:
     image: nacos/nacos-server:latest
     container_name: nacos
@@ -91,9 +110,88 @@ services:
       - "8848:8848"
       - "9848:9848"
       - "9555:9555"
-    restart: always
     deploy:
       resources:
         limits:
           cpus: '0.50'
-          memory: 200M
+          memory: 550M
+      restart_policy:
+        condition: on-failure
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200m"
+        max-file: "5"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8848/nacos"]
+      interval: 10s
+      timeout: 30s
+      retries: 3
+      start_period: 5m
+  es:
+    image: elasticsearch:8.0.0
+    container_name: es
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      - "discovery.type=single-node"
+      # - "ES_JAVA_OPTS=-Xms300m -Xmx300m"
+      - "bootstrap.memory_lock=true"
+      - "xpack.security.enabled=false"
+    volumes:
+      - elastic-data:/usr/share/elasticsearch/data
+      - elastic-config:/usr/share/elasticsearch/config
+    networks:
+      - elastic
+    deploy:
+      resources:
+        limits:
+          cpus: '0.20'
+          memory: 550M
+      restart_policy:
+        condition: on-failure
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200m"
+        max-file: "5"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:9200"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 5m
+  # nexus3:
+  #   image: sonatype/nexus3:latest
+  #   container_name: nexus3
+  #   environment:
+  #     INSTALL4J_ADD_VM_PARAMS: "-Xms2703m -Xmx2703m -XX:MaxDirectMemorySize=2703m"
+  #     NEXUS_CONTEXT: /nexus
+  #   privileged: true
+  #   ports: 
+  #     - 8081:8081
+  #   volumes: 
+  #     - /opt/docker-file/nexus3:/nexus-data:rw
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '0.50'
+  #         memory: 2800M
+  #     restart_policy:
+  #       condition: on-failure
+networks:
+  elastic:
+    name: elastic_bridge
+    driver: bridge
+volumes:
+  elastic-config:
+    name: elastic-config
+  elastic-data:
+    name: elastic-data
+  kibana-config:
+    name: kibana-config
+  kibana-data:
+    name: kibana-data
+  kibana-bin:
+    name: kibana-bin
