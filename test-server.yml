@@ -195,3 +195,9 @@ volumes:
     name: kibana-data
   kibana-bin:
     name: kibana-bin
+  gitlab-data:
+    name: gitlab-data
+  gitlab-config:
+    name: gitlab-config
+  gitlab-logs:
+    name: gitlab-logs
