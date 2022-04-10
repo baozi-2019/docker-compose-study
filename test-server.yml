@@ -162,6 +162,56 @@ services:
       timeout: 10s
       retries: 3
       start_period: 5m
+  zookeeper:
+    image: zookeeper:latest
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    volumes:
+      - "zookeeper-data:/data"
+      - "zookeeper-datalog:/datalog"
+      - "zookeeper-logs:/logs"
+      - "zookeeper-config:/conf"
+    environment:
+      - JVMFLAGS=-Xms150m -Xmx150m
+    networks:
+      - kafka
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: 200M
+      restart_policy:
+        condition: on-failure
+  kafka:
+    image: bitnami/kafka:latest
+    container_name: kafka
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      - KAFKA_HEAP_OPT=-Xmx450m -Xms450m
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+      - ALLOW_PLAINTEXT_LISTENER=true
+      - KAFKA_BROKER_ID=1
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CLIENT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      - KAFKA_CFG_LISTENERS=CLIENT://:9092,EXTERNAL://:9093
+      - KAFKA_CFG_LISTENERS=CLIENT://:9092,EXTERNAL://0.0.0.0:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=CLIENT://kafka:9092,EXTERNAL://localhost:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=CLIENT://kafka:9092,EXTERNAL://172.21.0.15:9093
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=CLIENT
+    depends_on:
+      - zookeeper
+    networks:
+      - kafka
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: 500M
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
   # nexus3:
   #   image: sonatype/nexus3:latest
   #   container_name: nexus3
@@ -184,20 +234,21 @@ networks:
   elastic:
     name: elastic_bridge
     driver: bridge
+  kafka:
+    name: kafka_bridge
+    driver: bridge
 volumes:
   elastic-config:
     name: elastic-config
   elastic-data:
     name: elastic-data
-  kibana-config:
-    name: kibana-config
-  kibana-data:
-    name: kibana-data
   kibana-bin:
     name: kibana-bin
-  gitlab-data:
-    name: gitlab-data
-  gitlab-config:
-    name: gitlab-config
-  gitlab-logs:
-    name: gitlab-logs
+  zookeeper-data:
+    name: zookeeper-data
+  zookeeper-datalog:
+    name: zookeeper-datalog
+  zookeeper-logs:
+    name: zookeeper-logs
+  zookeeper-config:
+    name: zookeeper-config
