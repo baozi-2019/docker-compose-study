@@ -5,6 +5,7 @@ services:
     container_name: mysql
     ports:
       - 3306:3306
+      - 33060:33060
     volumes:
             #- /opt/docker-file/mysql/conf/my.cnf:/etc/mysql/conf.d/config-file.cnf:ro
             #- /opt/docker-file/mysql/logs/:/var/lib/mysql/logs/
@@ -27,6 +28,25 @@ services:
       options:
         max-size: "200m"
         max-file: "5"
+  # teamcity:
+  #   image: jetbrains/teamcity-server:2022.04
+  #   container_name: teamcity
+  #   ports:
+  #     - "8111:8111"
+  #   volumes:
+  #     - teamcity-data:/data/teamcity_server/datadir
+  #     - teamcity-logs:/opt/teamcity/logs
+  #   depends_on:
+  #     - mysql
+  # teamcity-agent-1:
+  #   image: jetbrains/teamcity-agent:2022.04-linux-sudo
+  #   container_name: teamcity-agent-1
+  #   privileged: true
+  #   volumes:
+  #     - teamcity-agent-config:/data/teamcity_agent/conf
+  #   environment:
+  #     - DOCKER_IN_DOCKER=start
+  #     - SERVER_URL=teamcity:8111
   redis:
     image: "redis:latest"
     container_name: redis
@@ -99,8 +119,22 @@ services:
   nacos:
     image: nacos/nacos-server:latest
     container_name: nacos
-    env_file:
-      - /opt/docker-file/nacos/env/nacos.env
+    environment:
+      - PREFER_HOST_MODE=hostname
+      - MODE=standalone
+      - MYSQL_DATABASE_NUM=1
+      - SPRING_DATASOURCE_PLATFORM=mysql
+      - MYSQL_SERVICE_HOST=mysql
+      - MYSQL_SERVICE_DB_NAME=nacos_dev
+      - MYSQL_SERVICE_PORT=3306
+      - MYSQL_SERVICE_USER=nacos
+      - MYSQL_SERVICE_PASSWORD=nacos
+      - MYSQL_SERVICE_DB_PARAM=characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+      - JVM_XMS=400m
+      - JVM_XMX=400m
+      - JVM_XMN=200m
+      - JVM_MS=50m
+      - JVM_MMS=80m
     volumes:
       - /opt/docker-file/nacos/logs:/home/nacos/logs
       - /opt/docker-file/nacos/conf/custom.properties:/home/nacos/init.d/custom.properties
@@ -114,7 +148,7 @@ services:
       resources:
         limits:
           cpus: '0.50'
-          memory: 550M
+          memory: 650M
       restart_policy:
         condition: on-failure
     logging:
@@ -125,7 +159,7 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://127.0.0.1:8848/nacos"]
       interval: 10s
-      timeout: 30s
+      timeout: 10s
       retries: 3
       start_period: 5m
   es:
@@ -139,16 +173,19 @@ services:
       # - "ES_JAVA_OPTS=-Xms300m -Xmx300m"
       - "bootstrap.memory_lock=true"
       - "xpack.security.enabled=false"
+      - "-Des.enforce.bootstrap.checks=true"
     volumes:
-      - elastic-data:/usr/share/elasticsearch/data
-      - elastic-config:/usr/share/elasticsearch/config
+      - /opt/docker-file/es/data:/usr/share/elasticsearch/data
+      - /opt/docker-file/es/config:/usr/share/elasticsearch/config
+      - /opt/docker-file/es/logs:/usr/share/elasticsearch/logs
     networks:
       - elastic
+    restart: on-failure
     deploy:
       resources:
         limits:
           cpus: '0.20'
-          memory: 550M
+          memory: 600M
       restart_policy:
         condition: on-failure
     logging:
@@ -168,10 +205,10 @@ services:
     ports:
       - "2181:2181"
     volumes:
-      - "zookeeper-data:/data"
-      - "zookeeper-datalog:/datalog"
-      - "zookeeper-logs:/logs"
-      - "zookeeper-config:/conf"
+      - "/opt/docker-file/zookeeper/data:/data"
+      - "/opt/docker-file/zookeeper/datalog:/datalog"
+      - "/opt/docker-file/zookeeper/logs:/logs"
+      - "/opt/docker-file/zookeeper/config:/conf"
     environment:
       - JVMFLAGS=-Xms150m -Xmx150m
     networks:
@@ -189,17 +226,20 @@ services:
     ports:
       - "9092:9092"
       - "9093:9093"
+    volumes:
+      - "/opt/docker-file/kafka:/bitnami/kafka"
     environment:
-      - KAFKA_HEAP_OPT=-Xmx450m -Xms450m
+      - KAFKA_HEAP_OPT=-Xmx500m -Xms500m
       - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
       - ALLOW_PLAINTEXT_LISTENER=true
       - KAFKA_BROKER_ID=1
       - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CLIENT:PLAINTEXT,EXTERNAL:PLAINTEXT
-      - KAFKA_CFG_LISTENERS=CLIENT://:9092,EXTERNAL://:9093
-      - KAFKA_CFG_LISTENERS=CLIENT://:9092,EXTERNAL://0.0.0.0:9093
+      - KAFKA_CFG_LISTENERS=CLIENT://0.0.0.0:9092,EXTERNAL://0.0.0.0:9093
       - KAFKA_CFG_ADVERTISED_LISTENERS=CLIENT://kafka:9092,EXTERNAL://localhost:9093
       - KAFKA_CFG_ADVERTISED_LISTENERS=CLIENT://kafka:9092,EXTERNAL://172.21.0.15:9093
       - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=CLIENT
+      - KAFKA_CFG_LOG_RETENTION_HOURS=24
+      - KAFKA_CFG_LOG_RETENTION_CHECK_INTERVAL_MS=60000
     depends_on:
       - zookeeper
     networks:
@@ -208,10 +248,9 @@ services:
       resources:
         limits:
           cpus: '0.10'
-          memory: 500M
+          memory: 600M
       restart_policy:
         condition: on-failure
-        max_attempts: 3
   # nexus3:
   #   image: sonatype/nexus3:latest
   #   container_name: nexus3
@@ -237,18 +276,26 @@ networks:
   kafka:
     name: kafka_bridge
     driver: bridge
-volumes:
-  elastic-config:
-    name: elastic-config
-  elastic-data:
-    name: elastic-data
-  kibana-bin:
-    name: kibana-bin
-  zookeeper-data:
-    name: zookeeper-data
-  zookeeper-datalog:
-    name: zookeeper-datalog
-  zookeeper-logs:
-    name: zookeeper-logs
-  zookeeper-config:
-    name: zookeeper-config
+# volumes:
+#   elastic-config:
+#     name: elastic-config
+#   elastic-data:
+#     name: elastic-data
+#   kibana-bin:
+#     name: kibana-bin
+#   /opt/docker-file/zookeeper/data:
+#     name: /opt/docker-file/zookeeper/data
+#   /opt/docker-file/zookeeper/datalog:
+#     name: /opt/docker-file/zookeeper/datalog
+#   /opt/docker-file/zookeeper/logs:
+#     name: /opt/docker-file/zookeeper/logs
+#   /opt/docker-file/zookeeper/config:
+#     name: /opt/docker-file/zookeeper/config
+#   kafka-data:
+#     name: kafka-data
+#   teamcity-data:
+#     name: teamcity-data
+#   teamcity-logs:
+#     name: teamcity-logs
+#   teamcity-agent-config:
+#     name: teamcity-agent-config
