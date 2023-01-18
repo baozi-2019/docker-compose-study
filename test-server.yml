@@ -1,7 +1,7 @@
 version: "3.9"
 services:
   mysql:
-    image: "mysql:latest"
+    image: "mysql:8.0.31-debian"
     container_name: mysql
     ports:
       - 3306:3306
@@ -29,32 +29,63 @@ services:
         max-size: "200m"
         max-file: "5"
   # teamcity:
-  #   image: jetbrains/teamcity-server:2022.04
+  #   # image: jetbrains/teamcity-server:2022.04
+  #   image: jetbrains/teamcity-server:2022.10.1
   #   container_name: teamcity
   #   ports:
   #     - "8111:8111"
+  #   user: "root:root"
   #   volumes:
-  #     - teamcity-data:/data/teamcity_server/datadir
-  #     - teamcity-logs:/opt/teamcity/logs
+  #     - /opt/docker-file/teamcity/data:/data/teamcity_server/datadir
+  #     - /opt/docker-file/teamcity/logs:/opt/teamcity/logs
   #   depends_on:
   #     - mysql
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '1'
+  #         memory: 1.5G
+  #     restart_policy:
+  #       condition: on-failure
+  #       max_attempts: 3
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "200m"
+  #       max-file: "5"
   # teamcity-agent-1:
-  #   image: jetbrains/teamcity-agent:2022.04-linux-sudo
+  #   # image: jetbrains/teamcity-agent:2022.04-linux-sudo
+  #   image: jetbrains/teamcity-agent:2022.10.1-linux-sudo
   #   container_name: teamcity-agent-1
-  #   privileged: true
+  #   user: "root:root"
   #   volumes:
-  #     - teamcity-agent-config:/data/teamcity_agent/conf
+  #     - /opt/docker-file/teamcity-agent/config:/data/teamcity_agent/conf
   #   environment:
   #     - DOCKER_IN_DOCKER=start
   #     - SERVER_URL=teamcity:8111
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '2'
+  #         memory: 1.0G
+  #     restart_policy:
+  #       condition: on-failure
+  #       max_attempts: 3
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "200m"
+  #       max-file: "5"
   redis:
-    image: "redis:latest"
+    image: "redis:7.0.7-alpine"
     container_name: redis
     ports:
       - 6379:6379
     volumes:
-      - /opt/docker-file/redis/data:/usr/local/etc/redis/data
-      - /opt/docker-file/redis/conf:/usr/local/etc/redis
+      - /opt/docker-file/redis/data:/data
+      - /opt/docker-file/redis/log:/data/log
+      - /opt/docker-file/redis/conf/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
     deploy:
       resources:
         limits:
@@ -69,7 +100,7 @@ services:
         max-size: "200m"
         max-file: "5"
   rabbitmq:
-    image: "rabbitmq:management"
+    image: "rabbitmq:3.9.27-management-alpine"
     ports:
       - 15672:15672
       - 5672:5672
@@ -117,7 +148,7 @@ services:
         max-size: "200m"
         max-file: "5"
   nacos:
-    image: nacos/nacos-server:latest
+    image: nacos/nacos-server:v2.2.0
     container_name: nacos
     environment:
       - PREFER_HOST_MODE=hostname
@@ -125,7 +156,7 @@ services:
       - MYSQL_DATABASE_NUM=1
       - SPRING_DATASOURCE_PLATFORM=mysql
       - MYSQL_SERVICE_HOST=mysql
-      - MYSQL_SERVICE_DB_NAME=nacos_dev
+      - MYSQL_SERVICE_DB_NAME=nacos
       - MYSQL_SERVICE_PORT=3306
       - MYSQL_SERVICE_USER=nacos
       - MYSQL_SERVICE_PASSWORD=nacos
@@ -137,7 +168,8 @@ services:
       - JVM_MMS=80m
     volumes:
       - /opt/docker-file/nacos/logs:/home/nacos/logs
-      - /opt/docker-file/nacos/conf/custom.properties:/home/nacos/init.d/custom.properties
+      # - /opt/docker-file/nacos/conf/custom.properties:/home/nacos/init.d/custom.properties
+      - /opt/docker-file/nacos/conf:/home/nacos/conf
     depends_on:
       - mysql
     ports:
@@ -200,7 +232,7 @@ services:
       retries: 3
       start_period: 5m
   zookeeper:
-    image: zookeeper:latest
+    image: zookeeper:3.8.0-temurin
     container_name: zookeeper
     ports:
       - "2181:2181"
@@ -210,7 +242,7 @@ services:
       - "/opt/docker-file/zookeeper/logs:/logs"
       - "/opt/docker-file/zookeeper/config:/conf"
     environment:
-      - JVMFLAGS=-Xms150m -Xmx150m
+      - JVMFLAGS=-Xmx150m
     networks:
       - kafka
     deploy:
@@ -221,7 +253,8 @@ services:
       restart_policy:
         condition: on-failure
   kafka:
-    image: bitnami/kafka:latest
+    # image: bitnami/kafka:latest
+    image: bitnami/kafka:3.3.1-debian-11-r35
     container_name: kafka
     ports:
       - "9092:9092"
@@ -236,7 +269,7 @@ services:
       - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CLIENT:PLAINTEXT,EXTERNAL:PLAINTEXT
       - KAFKA_CFG_LISTENERS=CLIENT://0.0.0.0:9092,EXTERNAL://0.0.0.0:9093
       - KAFKA_CFG_ADVERTISED_LISTENERS=CLIENT://kafka:9092,EXTERNAL://localhost:9093
-      - KAFKA_CFG_ADVERTISED_LISTENERS=CLIENT://kafka:9092,EXTERNAL://172.21.0.15:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=CLIENT://kafka:9092,EXTERNAL://192.168.0.210:9093
       - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=CLIENT
       - KAFKA_CFG_LOG_RETENTION_HOURS=24
       - KAFKA_CFG_LOG_RETENTION_CHECK_INTERVAL_MS=60000
